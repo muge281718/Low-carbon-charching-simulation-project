@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="停车场电动汽车充电低碳评估：在本地估算充电负荷、碳排、评分和服务能力。"
+    />
+    <meta name="theme-color" content="#10223f" />
+    <title>停车场充电低碳评估 · v0.1</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23246bfd'/%3E%3Cpath d='M10 23V11l6-4 6 4v12M7 23h18' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='m17 10-4 7h4l-2 6 6-8h-4l1.5-5Z' fill='white'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#results">跳到评估结果</a>
+
+    <div class="runtime-error" id="runtime-error" role="alert" hidden>
+      <strong>应用脚本未能加载</strong>
+      <span>请确认项目中的 js 目录完整，或重新下载文件后再打开。</span>
+    </div>
+
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" role="img">
+              <path d="M8 24V10.5L16 5l8 5.5V24" />
+              <path d="M4.5 24h23" />
+              <path d="M18 9.5 13.5 17H18l-2 7 6.5-9H18l1.5-5.5Z" />
+            </svg>
+          </div>
+          <div>
+            <div class="title-row">
+              <h1>停车场充电低碳评估</h1>
+              <span class="version-chip" id="header-version">v0.1.0</span>
+            </div>
+            <p>v0.1 · 运行阶段估算</p>
+          </div>
+        </div>
+
+        <div class="header-controls">
+          <div class="preset-group" aria-label="场景预设">
+            <span class="preset-label">快速场景</span>
+            <div class="preset-buttons">
+              <button class="preset-button is-active" type="button" data-preset="office">
+                写字楼
+              </button>
+              <button class="preset-button" type="button" data-preset="mall">
+                商场
+              </button>
+              <button class="preset-button" type="button" data-preset="community">
+                小区
+              </button>
+            </div>
+          </div>
+          <div class="header-actions">
+            <span class="model-version">
+              模型 <strong id="model-version">v0.1.0</strong>
+            </span>
+            <button class="button button-secondary" type="button" id="reset-button">
+              恢复默认
+            </button>
+            <button class="button button-primary" type="button" id="print-button">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M5 7V3.5h10V7M5 14H3.5V8.5h13V14H15M5 11.5h10v5H5z" />
+                <path d="M14 9.5h.01" />
+              </svg>
+              打印简报
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <aside class="control-panel" aria-labelledby="controls-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">INPUTS</p>
+            <h2 id="controls-title">配置参数</h2>
+          </div>
+          <span class="local-chip">
+            <span class="pulse-dot" aria-hidden="true"></span>
+            本地计算
+          </span>
+        </div>
+        <p class="panel-intro">
+          调整运行条件，结果与图表将即时重算。所有数值均保留原始精度参与计算。
+        </p>
+
+        <form id="parameter-form" novalidate>
+          <section class="control-group" aria-labelledby="demand-heading">
+            <div class="group-heading">
+              <span class="group-index">01</span>
+              <h3 id="demand-heading">需求</h3>
+              <span>充电规模与时段</span>
+            </div>
+
+            <div class="parameter-control" data-field="vehicles">
+              <div class="parameter-label-row">
+                <label for="vehicles-number">需要充电的车辆数</label>
+                <span class="parameter-hint">0–500 辆</span>
+              </div>
+              <div class="input-pair">
+                <input
+                  class="range-input"
+                  id="vehicles-range"
+                  type="range"
+                  min="0"
+                  max="500"
+                  step="1"
+                  value="40"
+                  data-key="vehicles"
+                  aria-label="需要充电的车辆数滑块"
+                />
+                <div class="number-control">
+                  <input
+                    class="number-input"
+                    id="vehicles-number"
+                    type="number"
+                    min="0"
+                    max="500"
+                    step="1"
+                    value="40"
+                    data-key="vehicles"
+                    inputmode="numeric"
+                    aria-describedby="vehicles-error"
+                  />
+                  <span>辆</span>
+                </div>
+              </div>
+              <p class="field-error" id="vehicles-error" aria-live="polite"></p>
+            </div>
+
+            <div class="parameter-control" data-field="duration">
+              <div class="parameter-label-row">
+                <label for="duration-number">单次充电时长</label>
+                <span class="parameter-hint">0.5–8 小时</span>
+              </div>
+              <div class="input-pair">
+                <input
+                  class="range-input"
+                  id="duration-range"
+                  type="range"
+                  min="0.5"
+                  max="8"
+                  step="0.5"
+                  value="2"
+                  data-key="duration"
+                  aria-label="单次充电时长滑块"
+                />
+                <div class="number-control">
+                  <input
+                    class="number-input"
+                    id="duration-number"
+                    type="number"
+                    min="0.5"
+                    max="8"
+                    step="0.5"
+                    value="2"
+                    data-key="duration"
+                    inputmode="decimal"
+                    aria-describedby="duration-error"
+                  />
+                  <span>小时</span>
+                </div>
+              </div>
+              <p class="field-error" id="duration-error" aria-live="polite"></p>
+            </div>
+
+            <div class="paired-controls">
+              <div class="parameter-control" data-field="windowStart">
+                <div class="parameter-label-row">
+                  <label for="windowStart-number">开始时刻</label>
+                  <span class="parameter-hint">0–23 时</span>
+                </div>
+                <div class="input-pair">
+                  <input
+                    class="range-input"
+                    id="windowStart-range"
+                    type="range"
+                    min="0"
+                    max="23"
+                    step="1"
+                    value="8"
+                    data-key="windowStart"
+                    aria-label="充电开始时刻滑块"
+                  />
+                  <div class="number-control number-control-short">
+                    <input
+                      class="number-input"
+                      id="windowStart-number"
+                      type="number"
+                      min="0"
+                      max="23"
+                      step="1"
+                      value="8"
+                      data-key="windowStart"
+                      inputmode="numeric"
+                      aria-describedby="windowStart-error"
+                    />
+                    <span>时</span>
+                  </div>
+                </div>
+                <p class="field-error" id="windowStart-error" aria-live="polite"></p>
+              </div>
+
+              <div class="parameter-control" data-field="windowEnd">
+                <div class="parameter-label-row">
+                  <label for="windowEnd-number">结束时刻</label>
+                  <span class="parameter-hint">1–24 时</span>
+                </div>
+                <div class="input-pair">
+                  <input
+                    class="range-input"
+                    id="windowEnd-range"
+                    type="range"
+                    min="1"
+                    max="24"
+                    step="1"
+                    value="18"
+                    data-key="windowEnd"
+                    aria-label="充电结束时刻滑块"
+                  />
+                  <div class="number-control number-control-short">
+                    <input
+                      class="number-input"
+                      id="windowEnd-number"
+                      type="number"
+                      min="1"
+                      max="24"
+                      step="1"
+                      value="18"
+                      data-key="windowEnd"
+                      inputmode="numeric"
+                      aria-describedby="windowEnd-error"
+                    />
+                    <span>时</span>
+                  </div>
+                </div>
+                <p class="field-error" id="windowEnd-error" aria-live="polite"></p>
+              </div>
+            </div>
+            <p class="inline-note">当前版本仅支持单日同时段，不支持跨午夜。</p>
+          </section>
+
+          <section class="control-group" aria-labelledby="supply-heading">
+            <div class="group-heading">
+              <span class="group-index">02</span>
+              <h3 id="supply-heading">供给</h3>
+              <span>桩数与功率</span>
+            </div>
+
+            <div class="parameter-control" data-field="chargers">
+              <div class="parameter-label-row">
+                <label for="chargers-number">充电桩数</label>
+                <span class="parameter-hint">0–100 个</span>
+              </div>
+              <div class="input-pair">
+                <input
+                  class="range-input"
+                  id="chargers-range"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value="10"
+                  data-key="chargers"
+                  aria-label="充电桩数滑块"
+                />
+                <div class="number-control">
+                  <input
+                    class="number-input"
+                    id="chargers-number"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value="10"
+                    data-key="chargers"
+                    inputmode="numeric"
+                    aria-describedby="chargers-error"
+                  />
+                  <span>个</span>
+                </div>
+              </div>
+              <p class="field-error" id="chargers-error" aria-live="polite"></p>
+            </div>
+
+            <div class="parameter-control" data-field="power">
+              <div class="parameter-label-row">
+                <label for="power-number">单桩功率</label>
+                <span class="parameter-hint">3.6–120 kW</span>
+              </div>
+              <div class="input-pair">
+                <input
+                  class="range-input"
+                  id="power-range"
+                  type="range"
+                  min="3.6"
+                  max="120"
+                  step="0.1"
+                  value="7"
+                  data-key="power"
+                  aria-label="单桩功率滑块"
+                />
+                <div class="number-control">
+                  <input
+                    class="number-input"
+                    id="power-number"
+                    type="number"
+                    min="3.6"
+                    max="120"
+                    step="0.1"
+                    value="7"
+                    data-key="power"
+                    inputmode="decimal"
+                    aria-describedby="power-error"
+                  />
+                  <span>kW</span>
+                </div>
+              </div>
+              <p class="field-error" id="power-error" aria-live="polite"></p>
+            </div>
+          </section>
+
+          <section class="control-group" aria-labelledby="energy-heading">
+            <div class="group-heading">
+              <span class="group-index">03</span>
+              <h3 id="energy-heading">能源</h3>
+              <span>光伏与排放假设</span>
+            </div>
+
+            <div class="parameter-control parameter-control-pv" data-field="pvShare">
+              <div class="parameter-label-row">
+                <label for="pvShare-number">光伏电量占比</label>
+                <span class="parameter-hint">0–100%</span>
+              </div>
+              <div class="input-pair">
+                <input
+                  class="range-input range-input-pv"
+                  id="pvShare-range"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value="60"
+                  data-key="pvShare"
+                  aria-label="光伏电量占比滑块"
+                />
+                <div class="number-control">
+                  <input
+                    class="number-input"
+                    id="pvShare-number"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value="60"
+                    data-key="pvShare"
+                    inputmode="numeric"
+                    aria-describedby="pvShare-error"
+                  />
+                  <span>%</span>
+                </div>
+              </div>
+              <p class="field-error" id="pvShare-error" aria-live="polite"></p>
+            </div>
+          </section>
+
+          <details class="advanced-panel">
+            <summary>
+              <span>
+                <strong>高级参数</strong>
+                <small>效率与排放因子</small>
+              </span>
+              <span class="summary-chevron" aria-hidden="true"></span>
+            </summary>
+            <div class="advanced-content">
+              <div class="parameter-control" data-field="efficiency">
+                <div class="parameter-label-row">
+                  <label for="efficiency-number">充电效率</label>
+                  <span class="parameter-hint">0.80–1.00</span>
+                </div>
+                <div class="input-pair">
+                  <input
+                    class="range-input"
+                    id="efficiency-range"
+                    type="range"
+                    min="0.8"
+                    max="1"
+                    step="0.01"
+                    value="0.92"
+                    data-key="efficiency"
+                    aria-label="充电效率滑块"
+                  />
+                  <div class="number-control">
+                    <input
+                      class="number-input"
+                      id="efficiency-number"
+                      type="number"
+                      min="0.8"
+                      max="1"
+                      step="0.01"
+                      value="0.92"
+                      data-key="efficiency"
+                      inputmode="decimal"
+                      aria-describedby="efficiency-error"
+                    />
+                    <span>—</span>
+                  </div>
+                </div>
+                <p class="field-error" id="efficiency-error" aria-live="polite"></p>
+              </div>
+
+              <div class="parameter-control" data-field="gridFactor">
+                <div class="parameter-label-row">
+                  <label for="gridFactor-number">电网排放因子</label>
+                  <span class="parameter-hint">0–1.5</span>
+                </div>
+                <div class="input-pair">
+                  <input
+                    class="range-input"
+                    id="gridFactor-range"
+                    type="range"
+                    min="0"
+                    max="1.5"
+                    step="0.01"
+                    value="0.58"
+                    data-key="gridFactor"
+                    aria-label="电网排放因子滑块"
+                  />
+                  <div class="number-control">
+                    <input
+                      class="number-input"
+                      id="gridFactor-number"
+                      type="number"
+                      min="0"
+                      max="1.5"
+                      step="0.01"
+                      value="0.58"
+                      data-key="gridFactor"
+                      inputmode="decimal"
+                      aria-describedby="gridFactor-error"
+                    />
+                    <span>kgCO₂e/kWh</span>
+                  </div>
+                </div>
+                <p class="field-error" id="gridFactor-error" aria-live="polite"></p>
+              </div>
+
+              <div class="parameter-control" data-field="pvFactor">
+                <div class="parameter-label-row">
+                  <label for="pvFactor-number">光伏生命周期因子</label>
+                  <span class="parameter-hint">0–0.2</span>
+                </div>
+                <div class="input-pair">
+                  <input
+                    class="range-input"
+                    id="pvFactor-range"
+                    type="range"
+                    min="0"
+                    max="0.2"
+                    step="0.001"
+                    value="0.03"
+                    data-key="pvFactor"
+                    aria-label="光伏生命周期因子滑块"
+                  />
+                  <div class="number-control">
+                    <input
+                      class="number-input"
+                      id="pvFactor-number"
+                      type="number"
+                      min="0"
+                      max="0.2"
+                      step="0.001"
+                      value="0.03"
+                      data-key="pvFactor"
+                      inputmode="decimal"
+                      aria-describedby="pvFactor-error"
+                    />
+                    <span>kgCO₂e/kWh</span>
+                  </div>
+                </div>
+                <p class="field-error" id="pvFactor-error" aria-live="polite"></p>
+              </div>
+            </div>
+          </details>
+        </form>
+      </aside>
+
+      <section class="results-panel" id="results" aria-labelledby="results-title">
+        <div class="results-heading">
+          <div>
+            <p class="eyebrow">LIVE ASSESSMENT</p>
+            <h2 id="results-title">运行结果</h2>
+          </div>
+          <div class="results-meta">
+            <span class="feasibility-badge feasibility-high" id="pv-feasibility">
+              时段光伏可行性：高
+            </span>
+            <span class="results-time" id="results-time">基于当前输入实时计算</span>
+          </div>
+        </div>
+
+        <div class="warning-area" id="warning-area" aria-live="polite"></div>
+
+        <section class="kpi-grid" aria-label="核心指标">
+          <article class="kpi-card">
+            <div class="kpi-topline">
+              <span class="kpi-label">总能耗</span>
+              <span class="kpi-icon kpi-icon-blue" aria-hidden="true">
+                <svg viewBox="0 0 20 20">
+                  <path d="M11.8 2.5 5.5 11h4l-1.3 6.5 6.3-8.8h-4l1.3-6.2Z" />
+                </svg>
+              </span>
+            </div>
+            <div class="kpi-value-row">
+              <strong class="kpi-value" id="kpi-energy">—</strong>
+              <span class="kpi-unit">kWh</span>
+            </div>
+            <p class="kpi-caption">桩端取电，含充电损耗</p>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-topline">
+              <span class="kpi-label">碳排放</span>
+              <span class="kpi-icon kpi-icon-amber" aria-hidden="true">
+                <svg viewBox="0 0 20 20">
+                  <path d="M10 17.5c3.2 0 5.5-2.1 5.5-5.1 0-2.2-1.2-4.4-3.6-6.6-.5 1.6-1.3 2.7-2.6 3.5.1-2.1-.6-4.1-2.2-5.8.1 3.5-2.1 5.3-2.6 8.9-.3 2.9 1.8 5.1 5.5 5.1Z" />
+                </svg>
+              </span>
+            </div>
+            <div class="kpi-value-row">
+              <strong class="kpi-value" id="kpi-carbon">—</strong>
+              <span class="kpi-unit">kgCO₂e</span>
+            </div>
+            <p class="kpi-caption">
+              较全电网基准
+              <span class="caption-highlight" id="kpi-reduction">—</span>
+            </p>
+          </article>
+
+          <article class="kpi-card kpi-card-score">
+            <div class="kpi-topline">
+              <span class="kpi-label">低碳评分</span>
+              <span class="score-band" id="score-band">待评估</span>
+            </div>
+            <div class="score-main">
+              <strong class="score-value" id="kpi-score">—</strong>
+              <span class="score-scale">/ 100</span>
+            </div>
+            <div class="score-meter" aria-hidden="true">
+              <span id="score-meter-fill"></span>
+            </div>
+            <p class="score-breakdown" id="score-breakdown">碳绩效 — / 光伏 —</p>
+            <p class="score-driver" id="score-driver">等待有效输入</p>
+            <p class="score-service-note" id="score-service-note" hidden></p>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-topline">
+              <span class="kpi-label">服务完成率</span>
+              <span class="kpi-icon kpi-icon-green" aria-hidden="true">
+                <svg viewBox="0 0 20 20">
+                  <circle cx="10" cy="10" r="6.5" />
+                  <path d="m6.8 10.2 2.1 2.1 4.4-4.6" />
+                </svg>
+              </span>
+            </div>
+            <div class="kpi-value-row">
+              <strong class="kpi-value" id="kpi-service">—</strong>
+              <span class="kpi-unit">%</span>
+            </div>
+            <p class="kpi-caption" id="kpi-service-caption">未服务 — 辆</p>
+          </article>
+        </section>
+
+        <section class="secondary-card" aria-labelledby="secondary-title">
+          <div class="secondary-heading">
+            <h3 id="secondary-title">能量与负荷拆解</h3>
+            <span>运行阶段边界</span>
+          </div>
+          <div class="secondary-grid">
+            <div class="secondary-metric">
+              <span class="metric-dot dot-pv" aria-hidden="true"></span>
+              <span class="secondary-label">光伏电量</span>
+              <strong><span id="metric-pv">—</span> <small>kWh</small></strong>
+            </div>
+            <div class="secondary-metric">
+              <span class="metric-dot dot-grid" aria-hidden="true"></span>
+              <span class="secondary-label">电网购电</span>
+              <strong><span id="metric-grid">—</span> <small>kWh</small></strong>
+            </div>
+            <div class="secondary-metric">
+              <span class="metric-dot dot-carbon" aria-hidden="true"></span>
+              <span class="secondary-label">碳强度</span>
+              <strong><span id="metric-intensity">—</span> <small>gCO₂e/kWh</small></strong>
+            </div>
+            <div class="secondary-metric">
+              <span class="metric-dot dot-load" aria-hidden="true"></span>
+              <span class="secondary-label">峰值负荷</span>
+              <strong><span id="metric-peak">—</span> <small>kW</small></strong>
+            </div>
+            <div class="secondary-metric">
+              <span class="metric-dot dot-loss" aria-hidden="true"></span>
+              <span class="secondary-label">充电损耗</span>
+              <strong><span id="metric-loss">—</span> <small>kWh</small></strong>
+            </div>
+            <div class="secondary-metric">
+              <span class="metric-dot dot-unmet" aria-hidden="true"></span>
+              <span class="secondary-label">未满足需求</span>
+              <strong><span id="metric-unmet">—</span> <small>kWh</small></strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="charts-grid" aria-label="运行曲线">
+          <article class="chart-card">
+            <div class="chart-heading">
+              <div>
+                <p class="chart-kicker">ENERGY MIX</p>
+                <h3>分时能量构成</h3>
+              </div>
+              <span class="chart-unit-tag">kWh</span>
+            </div>
+            <div class="chart-canvas" id="bar-chart" role="img" aria-label="逐小时光伏与电网供电量堆叠柱状图">
+              <div class="chart-tooltip" aria-hidden="true"></div>
+            </div>
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-heading">
+              <div>
+                <p class="chart-kicker">POWER PROFILE</p>
+                <h3>充电负荷与光伏出力</h3>
+              </div>
+              <span class="chart-unit-tag">kW</span>
+            </div>
+            <div class="chart-canvas" id="line-chart" role="img" aria-label="逐小时充电负荷、光伏功率与电网购电面积图">
+              <div class="chart-tooltip" aria-hidden="true"></div>
+            </div>
+          </article>
+        </section>
+
+        <section class="conclusion-card" aria-labelledby="conclusion-title">
+          <div class="conclusion-heading">
+            <div>
+              <p class="eyebrow">INSIGHTS</p>
+              <h3 id="conclusion-title">结论与建议</h3>
+            </div>
+            <span class="rule-tag">规则生成</span>
+          </div>
+          <ol class="conclusion-list" id="conclusion-list"></ol>
+        </section>
+
+        <details class="assumptions-panel">
+          <summary>
+            <span class="assumptions-summary-copy">
+              <span class="assumptions-icon" aria-hidden="true">i</span>
+              <span>
+                <strong>计算依据</strong>
+                <small>查看模型假设、因子与碳排边界</small>
+              </span>
+            </span>
+            <span class="summary-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="assumptions-content">
+            <dl>
+              <div>
+                <dt>模型版本</dt>
+                <dd id="assumption-version">—</dd>
+              </div>
+              <div>
+                <dt>充电效率</dt>
+                <dd id="assumption-efficiency">—</dd>
+              </div>
+              <div>
+                <dt>电网排放因子</dt>
+                <dd id="assumption-grid-factor">—</dd>
+              </div>
+              <div>
+                <dt>光伏生命周期因子</dt>
+                <dd id="assumption-pv-factor">—</dd>
+              </div>
+              <div>
+                <dt>到达假设</dt>
+                <dd>车辆在充电时段内均匀到达，按最早空闲桩分配。</dd>
+              </div>
+              <div>
+                <dt>光伏假设</dt>
+                <dd>光伏电量按桩端取电乘以输入占比估算，不随逐时可用性缩放。</dd>
+              </div>
+              <div class="assumption-wide">
+                <dt>碳排边界</dt>
+                <dd>
+                  仅包含电网购电与光伏生命周期排放；不含设备制造、停车场建设、电池制造、电价、储能和 V2G。
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </details>
+
+        <footer class="disclaimer">
+          本工具为运行阶段估算，不构成工程或投资建议。所有计算仅在本地浏览器完成。
+        </footer>
+      </section>
+    </main>
+
+    <script>
+      (() => {
+        const fileMode = window.location.protocol === "file:";
+        const appScript = document.createElement("script");
+        appScript.src = fileMode ? "js/app.standalone.js" : "js/app.js";
+        if (!fileMode) appScript.type = "module";
+
+        const showRuntimeError = () => {
+          const error = document.getElementById("runtime-error");
+          if (error) error.hidden = false;
+        };
+
+        appScript.addEventListener("error", showRuntimeError);
+        appScript.addEventListener("load", () => {
+          if (!window.__PARKING_APP_READY__) {
+            window.setTimeout(showRuntimeError, 1500);
+          }
+        });
+        document.body.appendChild(appScript);
+
+        if (!window.__PARKING_APP_READY__) {
+          window.setTimeout(showRuntimeError, 5000);
+        }
+      })();
+    </script>
+  </body>
+</html>
